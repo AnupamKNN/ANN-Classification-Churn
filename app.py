@@ -24,7 +24,11 @@ with open('scaler.pkl', 'rb') as file:
 st.title("Customer Churn Prediction")
 
 # Get the expected columns used while training the model
-expected_columns = scaler.feature_names_in_  # Only available in newer sklearn
+expected_columns = [
+    'Credit Score', 'Gender', 'Age', 'Tenure', 'Balance',
+    'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary',
+    'Geography_France', 'Geography_Germany', 'Geography_Spain'
+]
 
 # Get input from user
 geography = st.selectbox("Geography", onehot_encoder_geo.categories_[0])
