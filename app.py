@@ -2,9 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler, LabelEncoder, OneHotEncoder
-import pandas as pd
 import pickle
+from sklearn.preprocessing import StandardScaler, LabelEncoder, OneHotEncoder
 
 ## Load the trained model
 model = tf.keras.models.load_model("model.h5")
@@ -19,18 +18,10 @@ with open('onehot_encoder_geo.pkl', 'rb') as file:
 with open('scaler.pkl', 'rb') as file:
     scaler = pickle.load(file)
 
-
-## streamlit app
+# --- Streamlit UI ---
 st.title("Customer Churn Prediction")
 
-# Get the expected columns used while training the model
-expected_columns = [
-    'Credit Score', 'Gender', 'Age', 'Tenure', 'Balance',
-    'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary',
-    'Geography_France', 'Geography_Germany', 'Geography_Spain'
-]
-
-# Get input from user
+# Input fields
 geography = st.selectbox("Geography", onehot_encoder_geo.categories_[0])
 gender = st.selectbox("Gender", label_encoder_gender.classes_)
 age = st.slider("Age", 18, 92)
@@ -42,8 +33,8 @@ num_products = st.slider('Number of Products', 1, 4)
 has_cr_card = st.selectbox('Has Credit Card', [0, 1])
 is_active_member = st.selectbox('Is Active Member', [0, 1])
 
-# Prepare base input data
-input_data = pd.DataFrame({
+# --- Prepare input data ---
+base_data = pd.DataFrame({
     'Credit Score': [credit_score],
     'Gender': [label_encoder_gender.transform([gender])[0]],
     'Age': [age],
@@ -55,24 +46,28 @@ input_data = pd.DataFrame({
     'EstimatedSalary': [estimated_salary]
 })
 
-# Encode Geography
+# Encode 'Geography' with one-hot
 geo_encoded = onehot_encoder_geo.transform([[geography]]).toarray()
-geo_encoded_df = pd.DataFrame(geo_encoded, columns=onehot_encoder_geo.get_feature_names_out(['Geography']))
+geo_encoded_df = pd.DataFrame(
+    geo_encoded,
+    columns=onehot_encoder_geo.get_feature_names_out(['Geography'])
+)
 
-# Combine all inputs
-input_data = pd.concat([input_data.reset_index(drop=True), geo_encoded_df], axis=1)
+# Combine all columns
+input_data = pd.concat([base_data.reset_index(drop=True), geo_encoded_df], axis=1)
 
-# Reorder columns to match scaler's expected input
-input_data = input_data[expected_columns]
+# Ensure feature alignment
+expected_columns = list(scaler.feature_names_in_)
+input_data = input_data.reindex(columns=expected_columns, fill_value=0)
 
-# Scale
+# Scale input
 input_data_scaled = scaler.transform(input_data)
 
-## Prediction churn
-prediction = model.predict(input_data_scaled)
-prediction_proba = prediction[0][0]
+# --- Make prediction ---
+prediction_proba = model.predict(input_data_scaled)[0][0]
 
+# --- Show result ---
 if prediction_proba > 0.5:
-    st.write("The customer is likely to churn.")
+    st.success(f"The customer is likely to churn. 🔻 (Probability: {prediction_proba:.2f})")
 else:
-    st.write("The customer is likely to stay.")
+    st.info(f"The customer is likely to stay. ✅ (Probability: {1 - prediction_proba:.2f})")
